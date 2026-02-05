@@ -4,8 +4,6 @@ export type {
     EngineAPI,
     EnginePlugin,
     EngineState,
-    HierarchicalListItem,
-    HierarchicalListValue,
     NodeId,
     Operation,
     ViewCell,
@@ -14,5 +12,6 @@ export type {
     ViewColumn,
     LinearNode,
     CoreColumn,
-    TreeDataEngineOptions
+    TreeDataEngineOptions,
+    CustomOperation
 } from './types'

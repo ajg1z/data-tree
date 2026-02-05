@@ -1,1 +1,1 @@
-{"root":["./src/treedataengine.ts","./src/viewpipeline.ts","./src/fenwicktree.ts","./src/index.ts","./src/types.ts","./src/viewdata.ts","./src/worker/createworker.ts","./src/worker/index.ts","./src/worker/manager.ts","./src/worker/systemworker.worker.ts"],"version":"5.9.3"}
+{"root":["./src/treedataengine.test.ts","./src/treedataengine.ts","./src/viewpipeline.ts","./src/fenwicktree.ts","./src/index.ts","./src/types.ts","./src/viewdata.ts"],"version":"5.9.3"}

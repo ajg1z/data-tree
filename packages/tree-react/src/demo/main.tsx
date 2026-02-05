@@ -4,6 +4,8 @@ import { TreeDataList } from "../components/TreeDataList";
 import './main.scss'
 
 import type { CoreNode, CoreColumn, NodeId } from "@ajgiz/tree-core";
+import { SortPlugin } from "./plugins/SortPlugin";
+import { FilterPlugin } from "./plugins";
 
 function createExampleData() {
   const nodeMap = new Map<NodeId, CoreNode>();
@@ -110,6 +112,7 @@ function App() {
       <TreeDataList
         initData={useCallback(() => exampleData, [exampleData])}
         height={600}
+        plugins={useMemo(() => [new FilterPlugin(), new SortPlugin()], [])}
         options={useMemo(() => ({ paddingLeft: 20 }), [])}
         metadata={useMemo(() => ({
           expanded: new Set(exampleData.rootIds),

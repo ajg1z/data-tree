@@ -88,7 +88,7 @@ export interface EngineState<ViewOpts extends Record<string, any> = Record<strin
 }
 
 
-export type AddNodeOperation = OperationBase & {
+export type AddNodeOperation = {
   payload: {
     parentId?: NodeId | null
     node: {
@@ -99,43 +99,35 @@ export type AddNodeOperation = OperationBase & {
   type: 'add-node'
 }
 
-export type RemoveNodeOperation = OperationBase & {
+export type RemoveNodeOperation = {
   payload: {
     id: NodeId
   }
   type: 'remove-node'
 }
 
-export type RenameNodeOperation = OperationBase & {
-  payload: {
-    id: NodeId
-    text: string
-  }
-  type: 'rename-node'
-}
-
-export type ExpandNodeOperation = OperationBase & {
+export type ExpandNodeOperation = {
   payload: {
     id: NodeId
   }
   type: 'expand-node'
 }
 
-export type CollapseNodeOperation = OperationBase & {
+export type CollapseNodeOperation = {
   payload: {
     id: NodeId
   }
   type: 'collapse-node'
 }
 
-export type ToggleExpandOperation = OperationBase & {
+export type ToggleExpandOperation = {
   payload: {
     id: NodeId
   }
   type: 'toggle-expand'
 }
 
-export type SetColumnVisibilityOperation = OperationBase & {
+export type SetColumnVisibilityOperation = {
   payload: {
     index: number
     id?: string
@@ -144,14 +136,14 @@ export type SetColumnVisibilityOperation = OperationBase & {
   type: 'set-column-visibility'
 }
 
-export type SetColumnsVisibilityOperation = OperationBase & {
+export type SetColumnsVisibilityOperation = {
   payload: {
     visible: boolean
   }
   type: 'set-columns-visibility'
 }
 
-export type SetNodeVisibilityOperation = OperationBase & {
+export type SetNodeVisibilityOperation = {
   payload: {
     id: NodeId
     visible: boolean
@@ -159,14 +151,7 @@ export type SetNodeVisibilityOperation = OperationBase & {
   type: 'set-node-visibility'
 }
 
-export type SetNodesVisibilityOperation = OperationBase & {
-  payload: {
-    visible: boolean
-  }
-  type: 'set-nodes-visibility'
-}
-
-export type SetColumnWidthOperation = OperationBase & {
+export type SetColumnWidthOperation = {
   payload: {
     index: number
     id?: string
@@ -174,6 +159,30 @@ export type SetColumnWidthOperation = OperationBase & {
   }
   type: 'set-column-width'
 }
+
+export type SetColumnsWidthOperation = {
+  payload: {
+    indexes?: number[]
+    widths: Array<number | null | undefined> | Record<number, number>
+  }
+  type: 'set-columns-width'
+}
+
+export type CustomOperation = {
+  type: 'custom'
+  payload: {
+    type: string
+    data?: Record<string, unknown>
+  }
+}
+
+export type UpdateOptionsOperation = {
+  payload: {
+    options: Record<string, unknown>
+  }
+  type: 'update-options'
+}
+
 
 export type LinearNode = {
   id: NodeId
@@ -192,47 +201,8 @@ export type LinearNode = {
   disabled?: boolean
 }
 
-export type SetColumnsWidthOperation = OperationBase & {
-  payload: {
-    indexes?: number[]
-    widths: Array<number | null | undefined> | Record<number, number>
-  }
-  type: 'set-columns-width'
-}
 
-export type SelectOperation = OperationBase & {
-  payload: {
-    targetId?: NodeId
-    cellIndex?: number
-    modifiers?: {
-      shift?: boolean
-      ctrl?: boolean
-    }
-  }
-  type: 'select'
-}
-
-export type SetSelectionOperation = OperationBase & {
-  payload: {
-    selectionMode?: TSelectionMode
-    selectionBehavior?: TSelectionBehavior
-  }
-  type: 'set-selection'
-}
-
-export interface OperationBase {
-  type: string
-  payload?: Record<string, unknown>
-}
-
-export type UpdateOptionsOperation = OperationBase & {
-  payload: {
-    options: Record<string, unknown>
-  }
-  type: 'update-options'
-}
-
-export type SetMetadataOperation = OperationBase & {
+export type SetMetadataOperation = {
   payload: {
     metadata: {
       expanded?: Set<NodeId>
@@ -244,44 +214,21 @@ export type SetMetadataOperation = OperationBase & {
   type: 'set-metadata'
 }
 
-export type Operation = AddNodeOperation | RemoveNodeOperation | RenameNodeOperation | ExpandNodeOperation | CollapseNodeOperation | ToggleExpandOperation
-  | SetColumnVisibilityOperation | SetColumnsVisibilityOperation | SetNodeVisibilityOperation | SetNodesVisibilityOperation | SetColumnWidthOperation
-  | SetColumnsWidthOperation | SelectOperation | SetSelectionOperation | UpdateOptionsOperation | SetMetadataOperation
-
-export interface HierarchicalListItem {
-  id: string
-  parent: null | string
-  value: unknown[]
-  children?: HierarchicalListItem[]
-  disabled?: boolean
-  visible?: boolean
-}
-
-export interface HierarchicalListColumn {
-  id: ColumnId
-  text: string
-  width: number
-  visible: boolean
-  isAutoWidth?: boolean
-}
-
-export interface HierarchicalListValue {
-  value: HierarchicalListItem[]
-  columns: HierarchicalListColumn[]
-}
+export type Operation = AddNodeOperation | RemoveNodeOperation | ExpandNodeOperation | CollapseNodeOperation | ToggleExpandOperation
+  | SetColumnVisibilityOperation | SetColumnsVisibilityOperation | SetNodeVisibilityOperation | SetColumnWidthOperation
+  | SetColumnsWidthOperation | UpdateOptionsOperation | SetMetadataOperation | CustomOperation
 
 export interface EngineAPI {
-  apply(op: OperationBase): void
+  apply(op: Operation): void
   getPluginState<T>(pluginId: string): T
   resetRuntime?(): void
 }
 
-
 export interface EnginePlugin {
   id: string
   init?(engine: any): void
-  onOperation?(op: OperationBase, engine: any): void
-  onIncrementalUpdate?(payload: { op: OperationBase, metadata: ViewMetadata, linearNodes: LinearNode[], visibleNodesIndexes: number[] }, engine: any): void
+  onOperation?(op: Operation, engine: any): void
+  onIncrementalUpdate?(payload: { op: Operation, metadata: ViewMetadata, linearNodes: LinearNode[], visibleNodesIndexes: number[] }, engine: any): void
   run?(ctx: { metadata: ViewMetadata, isUpdated: boolean, index: number, originalMetadata: ViewMetadata, effect?: RebuildViewStateEffect }, engine: TreeDataEngine<any, any>): { data: ViewMetadata, isUpdated: boolean }
 }
 
