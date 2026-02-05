@@ -298,3 +298,41 @@ export type RebuildViewStateEffect = {
   type: "operation"
   operation: Operation
 }
+
+export interface TreeDataEngineOptions<Opts extends Record<string, any> = Record<string, any>, Metadata extends Record<string, any> = Record<string, any>> {
+  options?: Opts
+  plugins?: EnginePlugin[]
+
+  initData: () => {
+    nodeMap: Map<NodeId, CoreNode>
+    rootIds: Set<NodeId>
+    columns: CoreColumn[]
+  }
+
+  metadata?: {
+    expanded?: Set<NodeId>
+    hiddenColumns?: Set<number>
+    hiddenNodes?: Set<NodeId>
+    disabledNodes?: Set<NodeId>
+  }
+
+  createViewColumns?: (params: { columns: CoreColumn[], hiddenColumns: Set<number> }) => ViewColumn[]
+
+  buildLinearNodes?: (params: { metadata: ViewMetadata, buildCells: TreeDataEngineOptions['buildCells'], onNodeVisit?: (node: LinearNode) => void }) => LinearNode[]
+
+  buildCells?: (params: { values: unknown[], depth: number, hasChildren: boolean, columns: CoreColumn[], hiddenColumns: Set<number>, }) => ViewCell[] 
+
+  createNode?: (context: {
+    parentId: NodeId | null
+    columns: CoreColumn[],
+    payload: {
+      id: NodeId
+      value: unknown[]
+    }
+  }) => {
+    id: NodeId
+    parent: NodeId | null
+    value: unknown[]
+    children?: Array<{ id: NodeId; parent: NodeId | null; value: unknown[] }>
+  }
+}

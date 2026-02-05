@@ -19,55 +19,32 @@ import type {
   SelectionPluginState,
   ViewMetadata,
   LinearNode,
+  TreeDataEngineOptions,
 } from './types'
 
-import { TreeWorkerPlugin } from './worker'
 import { ViewPipeline } from './ViewPipeline'
 import { FenwickTree } from './fenwickTree'
-
-export interface TreeDataEngineOptions<Opts extends Record<string, any> = Record<string, any>, Metadata extends Record<string, any> = Record<string, any>> {
-  options?: Opts
-  plugins?: EnginePlugin[]
-
-  initData: () => {
-    nodeMap: Map<NodeId, CoreNode>
-    rootIds: Set<NodeId>
-    columns: CoreColumn[]
-  }
-
-  metadata?: {
-    expanded?: Set<NodeId>
-    hiddenColumns?: Set<number>
-    hiddenNodes?: Set<NodeId>
-    disabledNodes?: Set<NodeId>
-  }
-
-  createNode?: (context: {
-    parentId: NodeId | null
-    columns: CoreColumn[],
-    payload: {
-      id: NodeId
-      value: unknown[]
-    }
-  }) => {
-    id: NodeId
-    parent: NodeId | null
-    value: unknown[]
-    children?: Array<{ id: NodeId; parent: NodeId | null; value: unknown[] }>
-  }
-}
+import { buildCells, buildLinearNodes, createViewColumns } from './viewData'
 
 export class TreeDataEngine<Opts extends Record<string, any> = Record<string, any>, Metadata extends Record<string, any> = Record<string, any>> {
   private state: EngineState
-  private plugins: EnginePlugin[] = []
-  private listeners = new Set<() => void>()
-  private options: Opts = {} as Opts
-  private api: EngineAPI
-  private createNode?: TreeDataEngineOptions<Opts, Metadata>['createNode']
 
-  private invalidateFromIndexValue = Infinity
+  private plugins: EnginePlugin[] = []
+
+  private listeners = new Set<() => void>()
+
+  private options: Opts = {} as Opts
+
+  private api: EngineAPI
+
+  private createNode?: TreeDataEngineOptions<Opts, Metadata>['createNode']
+  private buildCells?: TreeDataEngineOptions<Opts, Metadata>['buildCells']
+  private createViewColumns?: TreeDataEngineOptions<Opts, Metadata>['createViewColumns']
+  private buildLinearNodes?: TreeDataEngineOptions<Opts, Metadata>['buildLinearNodes']
+
   private viewColumnsDirty = true
   private cacheViewColumns: ViewColumn[] | null = null
+
   private viewPipeline = new ViewPipeline()
 
   private visibleFenwick: FenwickTree = new FenwickTree(0)
@@ -83,8 +60,11 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
 
   constructor(options: TreeDataEngineOptions<Opts, Metadata>) {
     this.createNode = options.createNode
-    this.options = options.options ?? {} as Opts
+    this.buildCells = options.buildCells ?? buildCells
+    this.createViewColumns = options.createViewColumns ?? createViewColumns
+    this.buildLinearNodes = options.buildLinearNodes ?? buildLinearNodes
 
+    this.options = options.options ?? {} as Opts
     this.expanded = options.metadata?.expanded ?? new Set();
     this.hiddenNodes = options.metadata?.hiddenNodes ?? new Set();
     this.hiddenColumns = options.metadata?.hiddenColumns ?? new Set();
@@ -178,7 +158,9 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
     })
 
     this.state.viewDirty = true
+
     this.rebuildViewState({ type: "operation", operation: op })
+
     this.notify()
   }
 
@@ -193,14 +175,6 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
         const id = operation.payload.id
         if (id) {
           this.removeNode(id)
-        }
-        break
-      }
-      case 'rename-node': {
-        const id = operation.payload.id
-        const text = operation.payload.text
-        if (id && text !== undefined) {
-          this.renameNode(id, text)
         }
         break
       }
@@ -378,6 +352,7 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
     const childIds = new Set((item.children ?? []).map((child) => child.id))
 
     const depth = parentId && this.state.core.nodeMap.get(parentId) ? this.state.core.nodeMap.get(parentId)!.depth + 1 : 0
+
     this.state.core.nodeMap.set(item.id, {
       id: item.id,
       parent: parentId,
@@ -437,7 +412,10 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
 
     toRemove.forEach((nodeId) => {
       this.state.core.nodeMap.delete(nodeId)
+
       this.expanded.delete(nodeId)
+      this.hiddenNodes.delete(nodeId)
+      this.disabledNodes.delete(nodeId)
     })
 
     if (parentId) {
@@ -464,26 +442,9 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
     return collected
   }
 
-  private renameNode(id: NodeId, text: string): void {
-    const node = this.state.core.nodeMap.get(id)
-    if (!node) {
-      return
-    }
-
-    const values = [...node.value]
-    if (values.length > 0) {
-      const current = values[0]
-      if (current && typeof current === 'object' && 'text' in (current as { text?: unknown })) {
-        values[0] = { ...(current as { text?: string }), text }
-      } else {
-        values[0] = { text }
-      }
-    }
-    node.value = values
-  }
-
   private expandNode(id: NodeId): void {
     const node = this.state.core.nodeMap.get(id)
+
     if (!node || node.children.size === 0) {
       return
     }
@@ -526,20 +487,25 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
     const metadata = pipeline.metadata
     const isCoreUpdated = pipeline.isUpdated
 
-    // --- COLUMNS ---
-    if (this.viewColumnsDirty || !this.cacheViewColumns) {
-      this.cacheViewColumns = this.createViewColumns(this.state.core.columns)
+    const columnsDirty = this.viewColumnsDirty || !this.cacheViewColumns
+    if (columnsDirty) {
+      this.cacheViewColumns = this.createViewColumns({ columns: this.state.core.columns, hiddenColumns: this.hiddenColumns })
       this.viewColumnsDirty = false
     }
+
+    const structuralOp = effect?.type === 'operation' && (effect.operation.type === 'add-node' || effect.operation.type === 'remove-node')
 
     // --- NODES ---
     if (
       isCoreUpdated ||
-      !this.linearNodes ||
-      !effect
+      !this.linearNodes?.length ||
+      !effect ||
+      columnsDirty ||
+      structuralOp
     ) {
 
-      this.linearNodes = this.buildLinearNodes(metadata)
+      this.linearIndex.clear()
+      this.linearNodes = this.buildLinearNodes({ metadata, buildCells: this.buildCells!, onNodeVisit: (node) => this.linearIndex.set(node.id, node) })
 
       this.visibleFenwick = new FenwickTree(this.linearNodes.length)
 
@@ -607,79 +573,9 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
     return this.state.viewState?.metadata
   }
 
-  private createViewColumns(columns: CoreColumn[]): ViewColumn[] {
-    const viewColumns: ViewColumn[] = []
-
-    columns.forEach((column, index) => {
-      if (this.hiddenColumns.has(index)) {
-        return
-      }
-
-      viewColumns.push({
-        id: column.id,
-        text: column.text,
-        width: column.width ?? 0,
-        isAutoWidth: column.isAutoWidth,
-      })
-    })
-
-    return viewColumns
-  }
-
-  private buildLinearNodes(metadata: ViewMetadata): LinearNode[] {
-    const result: LinearNode[] = []
-    this.linearIndex.clear()
-
-
-    const visit = (id: NodeId, depth: number, parentVisible: boolean): number => {
-      const node = metadata.nodeMap.get(id)
-      if (!node) {
-        return 0
-      }
-
-      const hasChildren = node.children.size > 0
-      const expanded = metadata.expanded.has(id)
-      const isVisible = parentVisible && !metadata.hiddenNodes.has(id)
-
-      const linearNode: LinearNode = {
-        id,
-        depth,
-        hasChildren,
-        expanded,
-        visible: isVisible,
-        index: result.length,
-        subtreeSize: 1,
-        disabled: Boolean(node.disabled),
-        cells: this.buildCells(
-          node.value,
-          depth,
-          hasChildren,
-          metadata.columns,
-        ),
-      }
-
-      result.push(linearNode)
-      this.linearIndex.set(id, linearNode)
-
-      if (hasChildren) {
-        let subtree = 1
-        node.children.forEach(childId => {
-          subtree += visit(childId, depth + 1, isVisible && expanded)
-        })
-        linearNode.subtreeSize = subtree
-      }
-
-      return linearNode.subtreeSize
-    }
-
-    metadata.rootIds.forEach(id => visit(id, 0, true))
-
-    return result
-  }
-
   private expandLinearNode(id: NodeId) {
     const node = this.linearIndex.get(id)
-    if (!node || node.expanded) return
+    if (!node || node.expanded || !node.hasChildren) return
 
     node.expanded = true
 
@@ -809,48 +705,6 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
     if (removeCount > 0) {
       this.visibleNodesIndexes.splice(removeAt, removeCount)
     }
-  }
-
-  private buildCells(
-    values: unknown[],
-    depth: number,
-    hasChildren: boolean,
-    columns: CoreColumn[]
-  ): ViewCell[] {
-    const cells: ViewCell[] = []
-
-    values.slice(0, columns.length).forEach((value, index) => {
-      if (this.hiddenColumns.has(index)) {
-        return
-      }
-
-      const text = this.resolveText(value)
-
-      if (index === 0) {
-        cells.push({
-          renderer: 'tree/cell',
-          payload: { text, depth, hasChildren },
-        })
-        return
-      }
-
-      cells.push({ renderer: 'text', payload: { text } })
-    })
-
-    return cells
-  }
-
-  private resolveText(value: unknown): string {
-    if (value === null || value === undefined) {
-      return ''
-    }
-
-    if (typeof value === 'object' && 'text' in (value as { text?: unknown })) {
-      const text = (value as { text?: unknown }).text
-      return text === null || text === undefined ? '' : String(text)
-    }
-
-    return String(value)
   }
 
   private notify(): void {

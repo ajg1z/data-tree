@@ -1,5 +1,4 @@
 export { TreeDataEngine } from './TreeDataEngine'
-export type { TreeDataEngineOptions } from './TreeDataEngine'
 export type {
     CoreNode,
     EngineAPI,
@@ -14,5 +13,6 @@ export type {
     ViewState,
     ViewColumn,
     LinearNode,
-    CoreColumn
+    CoreColumn,
+    TreeDataEngineOptions
 } from './types'
