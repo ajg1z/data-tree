@@ -1,0 +1,116 @@
+.hlCellInner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  min-height: 32px;
+}
+
+.hlExpand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    background-color: #f0f0f0;
+    border-radius: 4px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  &.isExpanded {
+    .hlExpandIcon {
+      &::before {
+        content: '▼';
+        font-size: 10px;
+        color: #666;
+      }
+    }
+  }
+
+  &.isCollapsed {
+    .hlExpandIcon {
+      &::before {
+        content: '▶';
+        font-size: 10px;
+        color: #666;
+      }
+    }
+  }
+
+  &.isEmpty {
+    cursor: default;
+  }
+}
+
+.hlExpandIcon {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+}
+
+.hlCellText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #333;
+}
+
+.hlRow {
+  display: flex;
+  border-bottom: 1px solid #eee;
+  min-height: 32px;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background-color: #f9f9f9;
+  }
+
+  &.isDisabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
+
+.hlRowHide {
+  margin-left: auto;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  color: #999;
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+
+  &:hover {
+    color: #666;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+  }
+}
+
+.hlColumnHeader {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: #333;
+  border-right: 1px solid #ddd;
+  background-color: #f5f5f5;
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
