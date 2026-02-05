@@ -1,6 +1,6 @@
 {
     "name": "@ajgiz/tree-core",
-    "version": "0.1.2",
+    "version": "0.1.4",
     "description": "Ядро движка для работы с древовидными данными.",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
