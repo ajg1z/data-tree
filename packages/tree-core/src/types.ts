@@ -199,6 +199,8 @@ export type LinearNode = {
 
   cells: ViewCell[]
   disabled?: boolean
+
+  metadata?: Record<string, any>
 }
 
 
@@ -228,7 +230,8 @@ export interface EnginePlugin {
   id: string
   init?(engine: any): void
   onOperation?(op: Operation, engine: any): void
-  onIncrementalUpdate?(payload: { op: Operation, metadata: ViewMetadata, linearNodes: LinearNode[], visibleNodesIndexes: number[] }, engine: any): void
+  onMetadata?(params: { linearNodes: LinearNode[], visibleNodesIndexes: number[], linearIndex: Map<NodeId, LinearNode> }, engine: TreeDataEngine<any, any>): void
+  onIncrementalUpdate?(payload: { op: Operation, metadata: ViewMetadata, linearNodes: LinearNode[], visibleNodesIndexes: number[] }, engine: TreeDataEngine<any, any>): void
   run?(ctx: { metadata: ViewMetadata, isUpdated: boolean, index: number, originalMetadata: ViewMetadata, effect?: RebuildViewStateEffect }, engine: TreeDataEngine<any, any>): { data: ViewMetadata, isUpdated: boolean }
 }
 
@@ -265,9 +268,9 @@ export interface TreeDataEngineOptions<Opts extends Record<string, any> = Record
 
   createViewColumns?: (params: { columns: CoreColumn[], hiddenColumns: Set<number> }) => ViewColumn[]
 
-  buildLinearNodes?: (params: { metadata: ViewMetadata, buildCells: TreeDataEngineOptions['buildCells'], onNodeVisit?: (node: LinearNode) => void }) => LinearNode[]
+  buildLinearNodes?: (params: { metadata: ViewMetadata, buildCells: TreeDataEngineOptions['buildCells'], onNodeVisit?: (node: LinearNode) => void, }) => LinearNode[]
 
-  buildCells?: (params: { values: unknown[], depth: number, hasChildren: boolean, columns: CoreColumn[], hiddenColumns: Set<number>, }) => ViewCell[] 
+  buildCells?: (params: { values: unknown[], depth: number, hasChildren: boolean, columns: CoreColumn[], hiddenColumns: Set<number>, }) => ViewCell[]
 
   createNode?: (context: {
     parentId: NodeId | null

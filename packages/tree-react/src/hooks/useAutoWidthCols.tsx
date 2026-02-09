@@ -88,7 +88,9 @@ export const useAutoWidthCols = ({
             cachedColumns.current[index] = nextWidths[index]
         }
 
-        onAutoWidthsChange?.(nextWidths, autoWidthIndexes)
+        if (Object.keys(nextWidths).length > 0) {
+            onAutoWidthsChange?.(nextWidths, autoWidthIndexes)
+        }
     }, 100), [columns, measureCellWidth, minWidth, maxWidth, cellPadding, headerPadding, visibleRows, isScrolling])
 
     useEffect(() => {
