@@ -90,7 +90,7 @@ export class SortPlugin implements EnginePlugin {
       engine.setPluginState<SortPluginState>(this.id, newState)
     }
 
-    const isUpdateCache = updateOperation.includes(op.type)
+    const isUpdateCache = updateOperation.includes(op?.payload?.type)
     if (isUpdateCache) {
       this.dirty = true
     }

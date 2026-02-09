@@ -1,11 +1,22 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState, useEffect, useDeferredValue } from "react";
 import ReactDOM from "react-dom/client";
 import { TreeDataList } from "../components/TreeDataList";
-import './main.scss'
+import { createDefaultRenderRegistry } from "../registry/RenderRegistry";
+import "./main.scss";
 
-import type { CoreNode, CoreColumn, NodeId } from "@ajgiz/tree-core";
+import type { CoreNode, CoreColumn, NodeId, EngineAPI } from "@ajgiz/tree-core";
 import { SortPlugin } from "./plugins/SortPlugin";
 import { FilterPlugin } from "./plugins";
+import type { ColumnRenderFn, RenderRegistry } from "../types";
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+  return debounced;
+}
 
 function createExampleData() {
   const nodeMap = new Map<NodeId, CoreNode>();
@@ -103,20 +114,120 @@ function createExampleData() {
   return { nodeMap, rootIds, columns };
 }
 
+const columnHeaderStyle = {
+  display: "flex",
+  alignItems: "center",
+  fontWeight: 600,
+  color: "#333",
+  borderRight: "1px solid #ddd",
+  backgroundColor: "#f5f5f5",
+  padding: "4px 0px",
+};
+
+const ColumnWithSort: ColumnRenderFn = ({ column, ctx }) => (
+  <div
+    role="button"
+    tabIndex={0}
+    style={{
+      ...columnHeaderStyle,
+      width: column.width,
+      maxWidth: column.width,
+      minWidth: column.width,
+      cursor: "pointer",
+    }}
+    onClick={() =>
+      ctx.api.apply({
+        type: "custom",
+        payload: {
+          type: "set-sort",
+          data: { activeColumnIndex: ctx.index },
+        },
+      })
+    }
+    onKeyDown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        ctx.api.apply({
+          type: "custom",
+          payload: {
+            type: "set-sort",
+            data: { activeColumnIndex: ctx.index },
+          },
+        });
+      }
+    }}
+  >
+    <span>{column.text}</span>
+    <span style={{ marginLeft: 4, opacity: 0.7 }}>⇅</span>
+  </div>
+);
+
 function App() {
   const exampleData = useMemo(() => createExampleData(), []);
+  const [search, setSearch] = useState("");
+  const [api, setApi] = useState<EngineAPI | null>(null);
+  const debouncedSearch = useDeferredValue(search);
+
+  useEffect(() => {
+    if (api) {
+      api?.apply({
+        type: 'custom',
+        payload: {
+          type: 'set-filter',
+          data: { filterQuery: debouncedSearch },
+        },
+      });
+    }
+  }, [debouncedSearch]);
+
+  const registry = useMemo<RenderRegistry<Record<string, any>>>(() => {
+    return {
+      column: new Map([["default", ColumnWithSort]]),
+    };
+  }, []);
+
+  const plugins = useMemo(() => [new FilterPlugin(), new SortPlugin()], []);
+
+  const options = useMemo(
+    () => ({ paddingLeft: 20 }),
+    []
+  );
+
+  const initData = useCallback(() => exampleData, [exampleData]);
+
+  const metadata = useMemo(
+    () => ({ expanded: new Set(exampleData.rootIds) }),
+    [exampleData]
+  );
 
   return (
     <div style={{ padding: "20px" }}>
       <h1 style={{ marginBottom: "20px" }}>Пример TreeDataList</h1>
+      <form
+        onSubmit={(e) => e.preventDefault()}
+        style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}
+      >
+        <label htmlFor="search">Поиск</label>
+        <input
+          id="search"
+          type="search"
+          placeholder="Поиск по дереву (с debounce 300ms)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ padding: "6px 10px", minWidth: 260 }}
+        />
+      </form>
+
       <TreeDataList
-        initData={useCallback(() => exampleData, [exampleData])}
+        registry={registry}
+        initData={initData}
         height={600}
-        plugins={useMemo(() => [new FilterPlugin(), new SortPlugin()], [])}
-        options={useMemo(() => ({ paddingLeft: 20 }), [])}
-        metadata={useMemo(() => ({
-          expanded: new Set(exampleData.rootIds),
-        }), [exampleData])}
+        getApi={useCallback((api) => {
+          setApi(api);
+        }, [])}
+        plugins={plugins}
+        options={options}
+        metadata={metadata}
       />
     </div>
   );
@@ -125,6 +236,5 @@ function App() {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
+  </React.StrictMode>
 );
-

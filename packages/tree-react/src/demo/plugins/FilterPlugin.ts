@@ -71,6 +71,7 @@ export class FilterPlugin implements EnginePlugin {
   private matchesCache: Map<NodeId, boolean> | null = null
   private cacheDirty = true
   private resetSortPending = false
+  private lastFilterQuery: string = ''
 
   private cacheCoreData: { nodeMap: Map<NodeId, CoreNode>, rootIds: NodeId[] } | null = null
 
@@ -107,7 +108,7 @@ export class FilterPlugin implements EnginePlugin {
       }
     }
 
-    const isUpdateCache = updateOperation.includes(op.type)
+    const isUpdateCache = updateOperation.includes(op?.payload?.type)
     if (isUpdateCache) {
       this.cacheDirty = true
     }
@@ -117,18 +118,21 @@ export class FilterPlugin implements EnginePlugin {
     const { metadata, originalMetadata } = ctx
 
     const filterState = engine.getPluginState<FilterPluginState>(this.id)
-
-    const hasQuery = Boolean(filterState?.filterQuery?.trim())
+    const filterQuery =  filterState?.filterQuery?.trim() ?? ''
+    const hasQuery = Boolean(filterQuery.trim())
+    if (filterQuery !== this.lastFilterQuery) {
+      this.lastFilterQuery = filterQuery
+      this.cacheDirty = true
+    }
 
     if (!hasQuery) {
+      this.lastFilterQuery = ''
       if (this.resetSortPending) {
         this.resetSortPending = false
         this.cacheDirty = false
         this.matchesCache = null
-
         return { data: originalMetadata, isUpdated: true }
       }
-
       return { data: originalMetadata, isUpdated: false }
     }
 
@@ -142,7 +146,9 @@ export class FilterPlugin implements EnginePlugin {
       }
     }
 
-    this.matchesCache = computeFilterMatches(metadata, filterState.predicate!)
+    const predicate = filterState?.predicate ?? ((row: { cells: string[] }) =>
+      row.cells.some((c) => c.toLowerCase().includes(filterQuery!.toLowerCase())))
+    this.matchesCache = computeFilterMatches(metadata, predicate)
     this.cacheDirty = false
 
     const filteredNodeMap = new Map<NodeId, CoreNode>()

@@ -1,6 +1,6 @@
-import { Fragment, forwardRef, useCallback, useMemo } from 'react'
+import { Fragment, forwardRef, useCallback, useEffect, useMemo } from 'react'
 import type { HTMLAttributes } from 'react'
-import type { CoreColumn, CoreNode, EnginePlugin, LinearNode, NodeId } from '@ajgiz/tree-core'
+import type { CoreColumn, CoreNode, EngineAPI, EnginePlugin, LinearNode, NodeId } from '@ajgiz/tree-core'
 import { TreeDataEngine } from '@ajgiz/tree-core'
 import { createDefaultRenderRegistry } from '../registry/RenderRegistry'
 import { useTreeDataViewState } from '../hooks/useTreeDataViewState'
@@ -24,6 +24,7 @@ export interface TreeDataListProps<Opts extends Record<string, any> = Record<str
     rootIds: Set<NodeId>
     columns: CoreColumn[]
   }
+  getApi?: (api: EngineAPI) => void
   metadata?: {
     expanded?: Set<NodeId>
     hiddenColumns?: Set<number>
@@ -47,6 +48,7 @@ export const TreeDataList = <Opts extends Record<string, any> = Record<string, a
     classNames,
     initData,
     metadata,
+    getApi,
   } = props
 
   const defaultEngine = useMemo(() => new TreeDataEngine<Opts, Metadata>({
@@ -60,8 +62,17 @@ export const TreeDataList = <Opts extends Record<string, any> = Record<string, a
   const viewState = useTreeDataViewState<Opts, Metadata>(defaultEngine)!
 
   const api = useMemo(() => defaultEngine.getAPI(), [defaultEngine])
+  useEffect(() => {
+    if (getApi) {
+      getApi(api)
+    }
+  }, [getApi, api])
 
-  const resolvedRegistry = useMemo(() => registry ?? createDefaultRenderRegistry<Metadata>(), [registry])
+  const resolvedRegistry = useMemo(() => ({
+    cell: registry?.cell ?? createDefaultRenderRegistry<Metadata>().cell,
+    row: registry?.row ?? createDefaultRenderRegistry<Metadata>().row,
+    column: registry?.column ?? createDefaultRenderRegistry<Metadata>().column,
+  }), [registry])
 
   const { isScrolling, handleScroll } = useScrolling({
     delay: 50,

@@ -125,6 +125,10 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
     return this.state.core
   }
 
+  getOptions(): Opts {
+    return this.options
+  }
+
   getPluginState<T>(pluginId: string): T {
     return this.state.plugins.get(pluginId) as T
   }

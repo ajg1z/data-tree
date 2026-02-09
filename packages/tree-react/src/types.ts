@@ -22,7 +22,7 @@ export type RowRenderFn<ViewOpts extends Record<string, any> = Record<string, an
 }) => ReactNode
 
 export interface RenderRegistry<ViewOpts extends Record<string, any> = Record<string, any>> {
-    cell: Map<string, CellRenderFn<ViewOpts>>
-    row: Map<string, RowRenderFn<ViewOpts>>
-    column: Map<string, ColumnRenderFn<ViewOpts>>
+    cell?: Map<string, CellRenderFn<ViewOpts>>
+    row?: Map<string, RowRenderFn<ViewOpts>>
+    column?: Map<string, ColumnRenderFn<ViewOpts>>
 }
