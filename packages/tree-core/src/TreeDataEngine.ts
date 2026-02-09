@@ -488,7 +488,6 @@ export class TreeDataEngine<Opts extends Record<string, any> = Record<string, an
     const pipeline = this.viewPipeline.run(this.plugins, originalMetadata, this)
     const metadata = pipeline.metadata
     const isCoreUpdated = pipeline.isUpdated
-    console.log('isCoreUpdated', isCoreUpdated, effect)
 
     const columnsDirty = this.viewColumnsDirty || !this.cacheViewColumns
     if (columnsDirty) {
